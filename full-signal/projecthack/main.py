@@ -2,9 +2,7 @@ from fastapi import FastAPI, HTTPException
 import platform
 import subprocess
 import socket
-import paramiko
 import os
-import wmi
 import json
 from typing import Dict, List
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -16,7 +14,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
-pdfmetrics.registerFont(TTFont('DejaVuSans', 'full-signal//projecthack//DejaVuSans.ttf'))
+# Условный импорт для wmi
+if platform.system() == 'Windows':
+    import wmi
+else:
+    wmi = None
 
 app = FastAPI()
 
@@ -74,6 +76,8 @@ async def read_devices() -> List[Dict[str, str]]:
 
 # Функция для сбора информации об устройствах в Windows
 async def read_windows_devices() -> List[Dict[str, str]]:
+    if wmi is None:
+        raise HTTPException(status_code=501, detail="WMI not available on this system.")
     c = wmi.WMI()
     devices = []
     for device in c.Win32_PnPEntity():
@@ -101,17 +105,33 @@ async def read_windows_devices() -> List[Dict[str, str]]:
         devices.append(info)
     return devices
 
-
 # Функция для сбора информации об устройствах в Linux
 async def read_linux_devices() -> List[Dict[str, str]]:
+    devices = []
     try:
         # Выполнение команды lshw и вывод в формате JSON
-        result = subprocess.run(['lshw', '-json'], capture_output=True, text=True)
+        result = subprocess.run(['lshw', '-json'], capture_output=True, text=True, check=True)
         # Парсинг JSON вывода
-        devices = json.loads(result.stdout)
-        return devices
+        devices_info = json.loads(result.stdout)
+        # Проходимся по всем устройствам и собираем необходимую информацию
+        for device in devices_info:
+            if 'children' in device:
+                for child in device['children']:
+                    device_info = {
+                        "Name": child.get('product', ''),
+                        "DeviceID": child.get('id', ''),
+                        "Status": child.get('status', ''),
+                        "Description": child.get('description', ''),
+                        "Manufacturer": child.get('vendor', ''),
+                        "Type": child.get('class', '')  # Тип устройства
+                    }
+                    devices.append(device_info)
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(status_code=500, detail=f"lshw command failed: {e}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    return devices
+
 @app.get("/installed-programs")
 async def read_installed_programs() -> List[Dict[str, str]]:
     programs = []
@@ -194,11 +214,7 @@ async def create_pdf_report():
     system_info = await read_system_info()
     installed_programs = await read_installed_programs()
     hardware_serials = await read_hardware_serials()
-    # Получение информации об устройствах
     devices_info = await read_devices()
-
-    # Установка шрифта для канваса
-    p.setFont('DejaVuSans', 12)
 
     # Заголовок отчета
     p.drawString(100, 800, "Отчёт по безопасности")
@@ -221,20 +237,19 @@ async def create_pdf_report():
     for program in installed_programs:
         p.drawString(120, y, f"{program['name']} - {program['version']}")
         y -= 20
-        # Переход на новую страницу, если достигнут низ страницы
         if y < 50:
             p.showPage()
             y = 800
 
-            # Добавление информации об устройствах в PDF
-            p.drawString(100, 650, "Devices:")
-            y = 630
-            for device in devices_info:
-                p.drawString(120, y, remove_black_square_char(f"{device['Name']} - {device['Type']}"))
-                y -= 20
-                if y < 50:  # Переход на новую страницу, если достигнут низ страницы
-                    p.showPage()
-                    y = 800
+    # Добавление информации об устройствах в PDF
+    p.drawString(100, y, "Devices:")
+    y -= 20
+    for device in devices_info:
+        p.drawString(120, y, remove_black_square_char(f"{device['Name']} - {device['Type']}"))
+        y -= 20
+        if y < 50:  # Переход на новую страницу, если достигнут низ страницы
+            p.showPage()
+            y = 800
 
     # Завершение страницы и сохранение PDF
     p.showPage()
