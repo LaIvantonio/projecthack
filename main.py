@@ -5,8 +5,9 @@ import socket
 import paramiko
 import os
 import wmi
+import json
 from typing import Dict, List
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from jinja2 import Environment, FileSystemLoader
 from fastapi.responses import StreamingResponse
 from reportlab.pdfgen import canvas
@@ -16,6 +17,19 @@ from io import BytesIO
 app = FastAPI()
 
 env = Environment(loader=FileSystemLoader('templates'))
+
+def get_ip_address() -> str:
+    """Получение IP-адреса хоста."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # не подключаемся, просто используем для получения IP-адреса
+        s.connect(('10.255.255.255', 1))
+        IP = s.getsockname()[0]
+    except Exception:
+        IP = '127.0.0.1'
+    finally:
+        s.close()
+    return IP
 
 @app.get("/")
 async def read_root():
@@ -34,6 +48,55 @@ async def read_system_info() -> Dict[str, str]:
     }
     return system_info
 
+@app.get("/devices")
+async def read_devices() -> List[Dict[str, str]]:
+    if platform.system() == "Windows":
+        return await read_windows_devices()
+    elif platform.system() == "Linux":
+        return await read_linux_devices()
+    else:
+        return {"error": "Unsupported OS"}
+
+# Функция для сбора информации об устройствах в Windows
+async def read_windows_devices() -> List[Dict[str, str]]:
+    c = wmi.WMI()
+    devices = []
+    for device in c.Win32_PnPEntity():
+        # Определение типа устройства на основе его свойств
+        device_type = "Unknown"
+        if "keyboard" in (device.Name or "").lower():
+            device_type = "Input Device"
+        elif "mouse" in (device.Name or "").lower():
+            device_type = "Input Device"
+        elif "usb" in (device.Description or "").lower():
+            device_type = "Connected Device"
+        elif "drive" in (device.Description or "").lower():
+            device_type = "Storage Device"
+        # Добавьте дополнительные условия для определения типа устройства
+
+        info = {
+            "Name": device.Name or "",
+            "DeviceID": device.DeviceID or "",
+            "Status": device.Status or "",
+            "Description": device.Description or "",
+            "Manufacturer": device.Manufacturer or "",
+            "Service": device.Service or "",
+            "Type": device_type  # Добавленный тип устройства
+        }
+        devices.append(info)
+    return devices
+
+
+# Функция для сбора информации об устройствах в Linux
+async def read_linux_devices() -> List[Dict[str, str]]:
+    try:
+        # Выполнение команды lshw и вывод в формате JSON
+        result = subprocess.run(['lshw', '-json'], capture_output=True, text=True)
+        # Парсинг JSON вывода
+        devices = json.loads(result.stdout)
+        return devices
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 @app.get("/installed-programs")
 async def read_installed_programs() -> List[Dict[str, str]]:
     programs = []
@@ -212,7 +275,7 @@ async def remote_system_info(hostname: str, username: str, password: str):
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail=str(e))
-    
+
     try:
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -236,14 +299,12 @@ async def remote_system_info(hostname: str, username: str, password: str):
             "total_swap_space": output.split("\n")[13].split("=")[1].strip(),
             }
         return system_info
-    
+
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail=str(e))
-    
-        
-        #  raise HTTPException(status_code=501, detail="Unsupported OS")
-        
-    
 
-    
+
+        #  raise HTTPException(status_code=501, detail="Unsupported OS")
+
+
