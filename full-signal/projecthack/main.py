@@ -214,12 +214,11 @@ async def create_pdf_report():
     system_info = await read_system_info()
     installed_programs = await read_installed_programs()
     hardware_serials = await read_hardware_serials()
-    # Получение информации об устройствах
     devices_info = await read_devices()
 
 
     # Заголовок отчета
-    p.drawString(100, 800, "Отчёт по безопасности")
+    p.drawString(100, 800, "Security Audit Report")
 
     # Информация о системе
     p.drawString(100, 780, f"Hostname: {system_info['hostname']}")
@@ -231,28 +230,29 @@ async def create_pdf_report():
 
     # Серийные номера оборудования
     p.drawString(100, 650, "Hardware Serial Numbers:")
-    p.drawString(120, 630, f"BIOS Serial: {hardware_serials['bios_serial']}")
+    p.drawString(120, 630, f"BIOS Serial: {hardware_serials.get('bios_serial', 'N/A')}")
 
     # Установленные программы
     p.drawString(100, 600, "Installed Programs:")
     y = 580
     for program in installed_programs:
-        p.drawString(120, y, f"{program['name']} - {program['version']}")
+        p.drawString(120, y, f"{program.get('name', 'N/A')} - {program.get('version', 'N/A')}")
         y -= 20
-        # Переход на новую страницу, если достигнут низ страницы
         if y < 50:
             p.showPage()
             y = 800
 
-            # Добавление информации об устройствах в PDF
-            p.drawString(100, 650, "Devices:")
-            y = 630
-            for device in devices_info:
-                p.drawString(120, y, remove_black_square_char(f"{device['Name']} - {device['Type']}"))
-                y -= 20
-                if y < 50:  # Переход на новую страницу, если достигнут низ страницы
-                    p.showPage()
-                    y = 800
+    # Добавление информации об устройствах в PDF
+    p.drawString(100, y, "Devices:")
+    y -= 20
+    for device in devices_info:
+        device_name = device.get('Name', 'N/A')
+        device_type = device.get('Type', 'N/A')
+        p.drawString(120, y, f"{device_name} - {device_type}")
+        y -= 20
+        if y < 50:  # Переход на новую страницу, если достигнут низ страницы
+            p.showPage()
+            y = 800
 
     # Завершение страницы и сохранение PDF
     p.showPage()
