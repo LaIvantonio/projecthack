@@ -42,16 +42,26 @@ export const Header = () => {
     	setChangeStatus(newChangeStatus);
   	};
 
-	const getInfo = () => {
-		axios.get('/api/devices').then(response => {
-			if (response.status === 200) {
-				setNetworkInfo(response.data);
-				console.log(networkInfo);
-			} else {
-				console.log(`Упс! Что-то пошло не так. Статус запроса: ${response.status}`);
-			}
-		})
-	}
+    const getInfo = () => {
+      // Показываем окно обработки
+      handleClickStatus(0);
+
+      axios.get('http://127.0.0.1:8000/system-info').then(response => {
+        if (response.status === 200) {
+          setNetworkInfo(response.data);
+          // Скрываем окно обработки и показываем окно информации
+          handleClickStatus(-1); // Сброс всех окон
+          // Здесь вы можете вызвать функцию, которая отображает данные в окне информации
+          // Например, вы можете использовать контекст или пропсы для передачи данных в компонент Info
+          console.log(networkInfo);
+        } else {
+          console.log(`Упс! Что-то пошло не так. Статус запроса: ${response.status}`);
+        }
+      }).catch(error => {
+        console.log('Ошибка при запросе к серверу:', error);
+      });
+    };
+
 
   return (
 	<div className={style.header}>
@@ -67,6 +77,7 @@ export const Header = () => {
 			<button
 				onClick={() => {
 					handleClickStatus(0);
+					getInfo();
 				}}
 			><img src="turn-onoff.svg" alt='turn on/off'/>Запустить</button>
 			<button

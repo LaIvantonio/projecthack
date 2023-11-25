@@ -12,9 +12,22 @@ from jinja2 import Environment, FileSystemLoader
 from fastapi.responses import StreamingResponse
 from reportlab.pdfgen import canvas
 from io import BytesIO
+from fastapi.middleware.cors import CORSMiddleware
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 
+pdfmetrics.registerFont(TTFont('DejaVuSans', 'full-signal//projecthack//DejaVuSans.ttf'))
 
 app = FastAPI()
+
+# Настройка CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:8080"],  # Разрешенные источники
+    allow_credentials=True,
+    allow_methods=["*"],  # Разрешенные методы
+    allow_headers=["*"],  # Разрешенные заголовки
+)
 
 env = Environment(loader=FileSystemLoader('templates'))
 
@@ -31,6 +44,8 @@ def get_ip_address() -> str:
         s.close()
     return IP
 
+def remove_black_square_char(text):
+    return text.replace("■", "")
 @app.get("/")
 async def read_root():
     return {"message": "Welcome to the security audit API!"}
@@ -72,7 +87,7 @@ async def read_windows_devices() -> List[Dict[str, str]]:
             device_type = "Connected Device"
         elif "drive" in (device.Description or "").lower():
             device_type = "Storage Device"
-        # Добавьте дополнительные условия для определения типа устройства
+        # можно добавить доп условия для определения типа устройства
 
         info = {
             "Name": device.Name or "",
@@ -158,7 +173,7 @@ async def read_hardware_serials() -> Dict[str, str]:
 @app.get("/report/html", response_class=HTMLResponse)
 async def create_html_report():
     hardware_serials = await read_hardware_serials()
-    print(hardware_serials)  # Добавьте эту строку
+    print(hardware_serials)
     template = env.get_template('report_template.html')
     data = {
         "system_info": await read_system_info(),
@@ -179,9 +194,14 @@ async def create_pdf_report():
     system_info = await read_system_info()
     installed_programs = await read_installed_programs()
     hardware_serials = await read_hardware_serials()
+    # Получение информации об устройствах
+    devices_info = await read_devices()
+
+    # Установка шрифта для канваса
+    p.setFont('DejaVuSans', 12)
 
     # Заголовок отчета
-    p.drawString(100, 800, "Security Audit Report")
+    p.drawString(100, 800, "Отчёт по безопасности")
 
     # Информация о системе
     p.drawString(100, 780, f"Hostname: {system_info['hostname']}")
@@ -194,7 +214,6 @@ async def create_pdf_report():
     # Серийные номера оборудования
     p.drawString(100, 650, "Hardware Serial Numbers:")
     p.drawString(120, 630, f"BIOS Serial: {hardware_serials['bios_serial']}")
-    # Добавьте дополнительные серийные номера, если они доступны
 
     # Установленные программы
     p.drawString(100, 600, "Installed Programs:")
@@ -207,12 +226,21 @@ async def create_pdf_report():
             p.showPage()
             y = 800
 
+            # Добавление информации об устройствах в PDF
+            p.drawString(100, 650, "Devices:")
+            y = 630
+            for device in devices_info:
+                p.drawString(120, y, remove_black_square_char(f"{device['Name']} - {device['Type']}"))
+                y -= 20
+                if y < 50:  # Переход на новую страницу, если достигнут низ страницы
+                    p.showPage()
+                    y = 800
+
     # Завершение страницы и сохранение PDF
     p.showPage()
     p.save()
     buffer.seek(0)
     return StreamingResponse(buffer, media_type="application/pdf")
-
 
 # Функция для подключения к удаленной Linux-системе через SSH и сбора информации
 def get_linux_system_info(hostname: str, username: str, password: str) -> Dict[str, str]:
@@ -226,7 +254,6 @@ def get_linux_system_info(hostname: str, username: str, password: str) -> Dict[s
         "platform-version": "uname -v",
         "architecture": "uname -m",
         "hostname": "hostname",
-        # Добавьте другие команды, если необходимо
     }
 
     system_info = {}
@@ -249,7 +276,6 @@ def get_windows_system_info(hostname: str, username: str, password: str) -> Dict
         system_info["platform-version"] = os.BuildNumber
         system_info["architecture"] = os.OSArchitecture
         system_info["hostname"] = os.CSName
-        # Добавьте другие свойства, если необходимо
 
     return system_info
 
@@ -304,7 +330,4 @@ async def remote_system_info(hostname: str, username: str, password: str):
         print(e)
         raise HTTPException(status_code=500, detail=str(e))
 
-
         #  raise HTTPException(status_code=501, detail="Unsupported OS")
-
-
