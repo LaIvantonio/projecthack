@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 import platform
 import subprocess
 import socket
+import paramiko
 import os
 import json
 from typing import Dict, List
@@ -12,7 +13,6 @@ from reportlab.pdfgen import canvas
 from io import BytesIO
 from fastapi.middleware.cors import CORSMiddleware
 from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
 
 # Условный импорт для wmi
 if platform.system() == 'Windows':
@@ -214,7 +214,9 @@ async def create_pdf_report():
     system_info = await read_system_info()
     installed_programs = await read_installed_programs()
     hardware_serials = await read_hardware_serials()
+    # Получение информации об устройствах
     devices_info = await read_devices()
+
 
     # Заголовок отчета
     p.drawString(100, 800, "Отчёт по безопасности")
@@ -237,19 +239,20 @@ async def create_pdf_report():
     for program in installed_programs:
         p.drawString(120, y, f"{program['name']} - {program['version']}")
         y -= 20
+        # Переход на новую страницу, если достигнут низ страницы
         if y < 50:
             p.showPage()
             y = 800
 
-    # Добавление информации об устройствах в PDF
-    p.drawString(100, y, "Devices:")
-    y -= 20
-    for device in devices_info:
-        p.drawString(120, y, remove_black_square_char(f"{device['Name']} - {device['Type']}"))
-        y -= 20
-        if y < 50:  # Переход на новую страницу, если достигнут низ страницы
-            p.showPage()
-            y = 800
+            # Добавление информации об устройствах в PDF
+            p.drawString(100, 650, "Devices:")
+            y = 630
+            for device in devices_info:
+                p.drawString(120, y, remove_black_square_char(f"{device['Name']} - {device['Type']}"))
+                y -= 20
+                if y < 50:  # Переход на новую страницу, если достигнут низ страницы
+                    p.showPage()
+                    y = 800
 
     # Завершение страницы и сохранение PDF
     p.showPage()

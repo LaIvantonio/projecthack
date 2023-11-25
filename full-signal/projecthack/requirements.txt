@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+reportlab
+wmi
+paramiko
+psutil
+jinja2
