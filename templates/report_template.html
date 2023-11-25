@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Security Audit Report</title>
+</head>
+<body>
+    <h1>Security Audit Report</h1>
+    <h2>System Information</h2>
+    <ul>
+        {% for key, value in data.system_info.items() %}
+        <li>{{ key }}: {{ value }}</li>
+        {% endfor %}
+    </ul>
+    <h2>Installed Programs</h2>
+    <ul>
+        {% for program in data.installed_programs %}
+        <li>{{ program.name }} - {{ program.version }}</li>
+        {% endfor %}
+    </ul>
+    <h2>Hardware Serials</h2>
+    <ul>
+        {% for key, value in data.hardware_serials.items() %}
+        <li>{{ key }}: {{ value }}</li>
+        {% endfor %}
+    </ul>
+</body>
+</html>
