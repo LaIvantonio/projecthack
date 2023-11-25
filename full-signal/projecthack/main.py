@@ -55,13 +55,13 @@ async def read_root():
 @app.get("/system-info")
 async def read_system_info() -> Dict[str, str]:
     system_info = {
-        "platform": platform.system(),
-        "platform-release": platform.release(),
-        "platform-version": platform.version(),
-        "architecture": platform.machine(),
-        "hostname": platform.node(),
-        "ip-address": get_ip_address(),
-        "processor": platform.processor(),
+        "Платформа": platform.system(),
+        "Выпуск": platform.release(),
+        "Версия": platform.version(),
+        "Архитектура": platform.machine(),
+        "Имя-хоста": platform.node(),
+        "IP-адрес": get_ip_address(),
+        "Процессор": platform.processor(),
     }
     return system_info
 
@@ -94,13 +94,13 @@ async def read_windows_devices() -> List[Dict[str, str]]:
         # можно добавить доп условия для определения типа устройства
 
         info = {
-            "Name": device.Name or "",
-            "DeviceID": device.DeviceID or "",
-            "Status": device.Status or "",
-            "Description": device.Description or "",
-            "Manufacturer": device.Manufacturer or "",
-            "Service": device.Service or "",
-            "Type": device_type  # Добавленный тип устройства
+            "Название": device.Name or "",
+            "ID-устройства": device.DeviceID or "",
+            "Статус": device.Status or "",
+            "Описание": device.Description or "",
+            "Производитель": device.Manufacturer or "",
+            "Сервис": device.Service or "",
+            "Тип-устройства": device_type  # Добавленный тип устройства
         }
         devices.append(info)
     return devices
@@ -142,7 +142,7 @@ async def read_installed_programs() -> List[Dict[str, str]]:
             if line.strip() == '':
                 continue
             name, version = line.split()[:2]
-            programs.append({"name": name, "version": version})
+            programs.append({"Название": name, "Версия": version})
     elif platform.system() == "Linux":
         result = subprocess.run(["dpkg", "-l"], capture_output=True, text=True)
         lines = result.stdout.strip().split('\n')[5:]  # Skip the header lines
@@ -150,7 +150,7 @@ async def read_installed_programs() -> List[Dict[str, str]]:
             parts = line.split()
             if len(parts) >= 3:
                 name, version = parts[1], parts[2]
-                programs.append({"name": name, "version": version})
+                programs.append({"Название": name, "Версия": version})
     else:
         programs = "Unsupported OS"
     return programs
