@@ -5,3 +5,4 @@ wmi
 paramiko
 psutil
 jinja2
+winreg

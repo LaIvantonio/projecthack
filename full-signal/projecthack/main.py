@@ -5,6 +5,7 @@ import socket
 import paramiko
 import os
 import json
+import pandas as pd
 from typing import Dict, List
 from fastapi.responses import HTMLResponse, JSONResponse
 from jinja2 import Environment, FileSystemLoader
@@ -13,12 +14,16 @@ from reportlab.pdfgen import canvas
 from io import BytesIO
 from fastapi.middleware.cors import CORSMiddleware
 from reportlab.pdfbase import pdfmetrics
+from fastapi.responses import FileResponse
 
-# Условный импорт для wmi
+# Условный импорт для wmi и winreg
+# Поддержка кроссплатформенности
 if platform.system() == 'Windows':
     import wmi
+    import winreg
 else:
     wmi = None
+    winreg = None
 
 app = FastAPI()
 
@@ -55,13 +60,13 @@ async def read_root():
 @app.get("/system-info")
 async def read_system_info() -> Dict[str, str]:
     system_info = {
-        "Платформа": platform.system(),
-        "Выпуск": platform.release(),
-        "Версия": platform.version(),
-        "Архитектура": platform.machine(),
-        "Имя-хоста": platform.node(),
-        "IP-адрес": get_ip_address(),
-        "Процессор": platform.processor(),
+        "platform": platform.system(),
+        "platform-release": platform.release(),
+        "platform-version": platform.version(),
+        "architecture": platform.machine(),
+        "hostname": platform.node(),
+        "ip-address": get_ip_address(),
+        "processor": platform.processor(),
     }
     return system_info
 
@@ -94,13 +99,13 @@ async def read_windows_devices() -> List[Dict[str, str]]:
         # можно добавить доп условия для определения типа устройства
 
         info = {
-            "Название": device.Name or "",
-            "ID-устройства": device.DeviceID or "",
-            "Статус": device.Status or "",
-            "Описание": device.Description or "",
-            "Производитель": device.Manufacturer or "",
-            "Сервис": device.Service or "",
-            "Тип-устройства": device_type  # Добавленный тип устройства
+            "Name": device.Name or "",
+            "DeviceID": device.DeviceID or "",
+            "Status": device.Status or "",
+            "Description": device.Description or "",
+            "Manufacturer": device.Manufacturer or "",
+            "Service": device.Service or "",
+            "Type": device_type  # Добавленный тип устройства
         }
         devices.append(info)
     return devices
@@ -132,17 +137,26 @@ async def read_linux_devices() -> List[Dict[str, str]]:
         raise HTTPException(status_code=500, detail=str(e))
     return devices
 
+def get_installed_programs_from_registry():
+    programs = []
+    for registry_key in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
+        key_path = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"
+        with winreg.OpenKey(registry_key, key_path, 0, winreg.KEY_READ | winreg.KEY_WOW64_32KEY) as key:
+            for i in range(0, winreg.QueryInfoKey(key)[0]):
+                try:
+                    subkey_name = winreg.EnumKey(key, i)
+                    with winreg.OpenKey(key, subkey_name) as subkey:
+                        name = winreg.QueryValueEx(subkey, "DisplayName")[0]
+                        version = winreg.QueryValueEx(subkey, "DisplayVersion")[0]
+                        programs.append({"name": name, "version": version})
+                except EnvironmentError:
+                    continue
+    return programs
+
 @app.get("/installed-programs")
 async def read_installed_programs() -> List[Dict[str, str]]:
-    programs = []
     if platform.system() == "Windows":
-        result = subprocess.run(["wmic", "product", "get", "name,version"], capture_output=True, text=True)
-        lines = result.stdout.strip().split('\n')[1:]  # Skip the header line
-        for line in lines:
-            if line.strip() == '':
-                continue
-            name, version = line.split()[:2]
-            programs.append({"Название": name, "Версия": version})
+        return get_installed_programs_from_registry()
     elif platform.system() == "Linux":
         result = subprocess.run(["dpkg", "-l"], capture_output=True, text=True)
         lines = result.stdout.strip().split('\n')[5:]  # Skip the header lines
@@ -150,9 +164,9 @@ async def read_installed_programs() -> List[Dict[str, str]]:
             parts = line.split()
             if len(parts) >= 3:
                 name, version = parts[1], parts[2]
-                programs.append({"Название": name, "Версия": version})
+                programs.append({"name": name, "version": version})
     else:
-        programs = "Unsupported OS"
+        return [{"error": "Unsupported OS"}]
     return programs
 
 @app.get("/hardware-serials")
@@ -216,7 +230,6 @@ async def create_pdf_report():
     hardware_serials = await read_hardware_serials()
     devices_info = await read_devices()
 
-
     # Заголовок отчета
     p.drawString(100, 800, "Security Audit Report")
 
@@ -260,92 +273,28 @@ async def create_pdf_report():
     buffer.seek(0)
     return StreamingResponse(buffer, media_type="application/pdf")
 
-# Функция для подключения к удаленной Linux-системе через SSH и сбора информации
-def get_linux_system_info(hostname: str, username: str, password: str) -> Dict[str, str]:
-    ssh_client = paramiko.SSHClient()
-    ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    ssh_client.connect(hostname, username=username, password=password)
+@app.get("/report/excel")
+async def create_excel_report():
+    # Gather your data
+    installed_programs = await read_installed_programs()
+    system_info = await read_system_info()
+    hardware_serials = await read_hardware_serials()
+    devices_info = await read_devices()
 
-    commands = {
-        "platform": "uname -s",
-        "platform-release": "uname -r",
-        "platform-version": "uname -v",
-        "architecture": "uname -m",
-        "hostname": "hostname",
-    }
+    # создаём датафрейм в Pandas
+    system_info_df = pd.DataFrame([system_info])
+    installed_programs_df = pd.DataFrame(installed_programs)
+    hardware_serials_df = pd.DataFrame([hardware_serials])
+    devices_info_df = pd.DataFrame(devices_info)
 
-    system_info = {}
-    for key, command in commands.items():
-        stdin, stdout, stderr = ssh_client.exec_command(command)
-        system_info[key] = stdout.read().decode().strip()
+    # Создаём Pandas excel используя openpyxl как "движок"
+    excel_file = "Security_Audit_Report.xlsx"
+    with pd.ExcelWriter(excel_file, engine='openpyxl') as writer:
+        # На каждый лист вынесены различные данные
+        system_info_df.to_excel(writer, sheet_name='System Information', index=False)
+        installed_programs_df.to_excel(writer, sheet_name='Installed Programs', index=False)
+        hardware_serials_df.to_excel(writer, sheet_name='Hardware Serials', index=False)
+        devices_info_df.to_excel(writer, sheet_name='Devices', index=False)
 
-    ssh_client.close()
-    return system_info
-
-
-# Функция для подключения к удаленной Windows-системе через WMI и сбора информации
-def get_windows_system_info(hostname: str, username: str, password: str) -> Dict[str, str]:
-    connection = wmi.WMI(computer=hostname, user=username, password=password)
-
-    system_info = {}
-    for os in connection.Win32_OperatingSystem():
-        system_info["platform"] = "Windows"
-        system_info["platform-release"] = os.Version
-        system_info["platform-version"] = os.BuildNumber
-        system_info["architecture"] = os.OSArchitecture
-        system_info["hostname"] = os.CSName
-
-    return system_info
-
-# Эндпоинт для получения информации о системе на удаленном компьютере
-@app.get("/remote-system-info/{hostname}")
-async def remote_system_info(hostname: str, username: str, password: str):
-    try:
-        c = wmi.WMI(computer=hostname, user=username, password=password)
-        os = c.Win32_OperatingSystem()[0]
-        system_info = {
-            "system": os.Caption,
-            "architecture": os.OSArchitecture,
-            "version": os.Version,
-            "service_pack": os.ServicePackMajorVersion,
-            "build_number": os.BuildNumber,
-            "install_date": os.InstallDate,
-            "last_boot_up_time": os.LastBootUpTime,
-            "number_of_users": len(c.Win32_ComputerSystem()[0].Users),
-            "system_directory": os.SystemDirectory,
-            "system_drive": os.SystemDrive,
-            "total_physical_memory": os.TotalPhysicalMemory,
-            }
-    except Exception as e:
-        print(e)
-        raise HTTPException(status_code=500, detail=str(e))
-
-    try:
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect(hostname=hostname, username=username, password=password)
-        stdin, stdout, stderr = ssh.exec_command("cat /etc/*-release")
-        output = stdout.read().decode()
-        system_info = {
-            "system": output.split("\n")[0].split("=")[1].strip(),
-            "architecture": output.split("\n")[1].split("=")[1].strip(),
-            "version": output.split("\n")[2].split("=")[1].strip(),
-            "kernel_version": output.split("\n")[3].split("=")[1].strip(),
-            "hostname": output.split("\n")[4].split("=")[1].strip(),
-            "uptime": output.split("\n")[5].split("=")[1].strip(),
-            "processor_type": output.split("\n")[6].split("=")[1].strip(),
-            "processor_architecture": output.split("\n")[7].split("=")[1].strip(),
-            "processor_cores": output.split("\n")[8].split("=")[1].strip(),
-            "processor_threads": output.split("\n")[9].split("=")[1].strip(),
-            "processor_model": output.split("\n")[10].split("=")[1].strip(),
-            "processor_speed": output.split("\n")[11].split("=")[1].strip(),
-            "total_physical_memory": output.split("\n")[12].split("=")[1].strip(),
-            "total_swap_space": output.split("\n")[13].split("=")[1].strip(),
-            }
-        return system_info
-
-    except Exception as e:
-        print(e)
-        raise HTTPException(status_code=500, detail=str(e))
-
-        #  raise HTTPException(status_code=501, detail="Unsupported OS")
+    # Возращаем готовый файл клиенту
+    return FileResponse(path=excel_file, filename=excel_file, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
