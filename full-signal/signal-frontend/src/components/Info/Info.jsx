@@ -3,10 +3,13 @@ import style from './Info.module.scss'
 import { ChangeContext } from '../../App';
 
 export const Info = () => {
+	//Состояние, которые связывает несколько radio-кнопок
 	const [radioValue, setRadioValue] = useState("Операционная система");
 
+	//Получение состояния информации об анализе сети
 	const {networkInfo} = useContext(ChangeContext);
 
+	//Функция, которая в зависимости от выбора radio, рендерит отчет на странице
 	const getInfo = () => {
 		let outputInfo = [];
 		if (radioValue === "Операционная система") {
@@ -49,6 +52,7 @@ export const Info = () => {
 	<div className={style.container}>
 		<h4>
 			{
+				/*Отображение серийного номера устройства на странице */
 				networkInfo !== null ? 
 				<>Серийный номер<span>{networkInfo[3].bios_serial}</span></> : 
 				"Окно отчёта"
@@ -58,7 +62,7 @@ export const Info = () => {
 			{
 				networkInfo !== null ? 
 				<>
-					{
+					{ /*Рендеринг radio-кнопок */
 						["Операционная система", "Устройства", "Установленное ПО"].map((option) => (
 							<div key={option}>
 								<input 
@@ -77,7 +81,8 @@ export const Info = () => {
 			}
 		</div>
 		<div className={style.reportContainer}>
-			{networkInfo !== null ? getInfo() : <p>Здесь будет отображаться Ваш <span>отчёт</span></p>}
+			{/*Рендеринг нужной информации в контейнере отчета */
+				networkInfo !== null ? getInfo() : <p>Здесь будет отображаться Ваш <span>отчёт</span></p>}
 		</div>
 	</div>
   )
