@@ -1,0 +1,11 @@
+winreg
+wmi
+fastapi
+uvicorn
+reportlab
+paramiko
+psutil
+jinja2
+pandas
+sass
+axios
