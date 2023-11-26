@@ -4,7 +4,7 @@ import { Info } from './components/Info/Info';
 import { StatusBar } from './components/StatusBar/StatusBar';
 import React, { useState } from 'react';
 
-export const ChangeStatusContext = React.createContext();
+export const ChangeContext = React.createContext();
 
 function App() {
 
@@ -14,9 +14,16 @@ function App() {
     { display: 'none' },
     { display: 'none' }
   ]);
+
+  const [networkInfo, setNetworkInfo] = useState(null);
   
   return (
-    <ChangeStatusContext.Provider value={{ changeStatus, setChangeStatus }}>
+    <ChangeContext.Provider value={{ 
+        changeStatus, 
+        setChangeStatus, 
+        networkInfo,
+        setNetworkInfo
+      }}>
       <div className="App" style={{padding: "1rem 2rem"}}>
       <Header/>
         <div style={{display: "flex", justifyContent: "space-between", alignContent: "center"}}>
@@ -25,7 +32,7 @@ function App() {
         </div>
       </div>
       <Footer/>
-    </ChangeStatusContext.Provider>  
+    </ChangeContext.Provider>  
   );
 }
 

@@ -5,4 +5,57 @@
 	border-radius: .8rem;
 	width: 71.5%;
 	height: 70vh;
+	overflow-y: scroll;
+	overflow-x: auto;
+	scrollbar-width: 0;
+
+	h4 {
+		font-size: $size-h3;
+		font-weight: $regular;
+		font-family: $font-title;
+		text-align: center;
+		margin-block: 1rem;
+
+		span {
+			color: $lightblue;
+			font-family: $font-title;
+		}
+	}
+}
+
+.parameters {
+	display: flex;
+	justify-content: space-evenly;
+	align-items: center;
+	margin-bottom: 2rem;
+
+	div > input {
+		margin-right: 1rem;
+	}
+
+	div > label {
+		font-size: $size-h4;
+	}
+}
+
+.reportContainer {
+	border: .3rem solid $lightblue;
+	border-radius: .8rem;
+	margin-inline: 2rem;
+	padding: 2rem;
+	font-family: $font-title !important;
+
+	p {
+		font-size: $size-p;
+		font-family: $font-title;
+		span {
+			color: $lightblue;
+			font-family: $font-title;
+		}
+	}
+
+	h3 {
+		font-size: $size-h4;
+		font-family: $font-title;
+	}
 }

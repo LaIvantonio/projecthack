@@ -1,10 +1,9 @@
 import React, { useContext, useEffect, useState } from 'react'
 import style from './Header.module.scss'
-import { ChangeStatusContext } from '../../App';
+import { ChangeContext } from '../../App';
 import axios from 'axios';
 
 export const Header = () => {
-	const [networkInfo, setNetworkInfo] = useState(null);
 	const [greeting, setGreeting] = useState("");
 	const [dateTime, setDateTime] = useState(new Date().toLocaleString());
 
@@ -33,7 +32,8 @@ export const Header = () => {
    		};
  	}, []);
 
-	const { changeStatus, setChangeStatus } = useContext(ChangeStatusContext);
+	const { changeStatus, setChangeStatus } = useContext(ChangeContext);
+	const { networInfo, setNetworkInfo } = useContext(ChangeContext);
 
 	const handleClickStatus = index => {
     	const newChangeStatus = changeStatus.map((item, i) => {
@@ -42,25 +42,27 @@ export const Header = () => {
     	setChangeStatus(newChangeStatus);
   	};
 
-    const getInfo = () => {
-      // Показываем окно обработки
-      handleClickStatus(0);
+	const getInfo = () => {
+		const endpoints = [
+			"http://127.0.0.1:8000/system-info", 
+			"http://127.0.0.1:8000/devices", 
+			"http://127.0.0.1:8000/installed-programs", 
+			"http://127.0.0.1:8000/hardware-serials"
+		];
 
-      axios.get('http://127.0.0.1:8000/system-info').then(response => {
-        if (response.status === 200) {
-          setNetworkInfo(response.data);
-          // Скрываем окно обработки и показываем окно информации
-          handleClickStatus(-1); // Сброс всех окон
-          // Здесь вы можете вызвать функцию, которая отображает данные в окне информации
-          // Например, вы можете использовать контекст или пропсы для передачи данных в компонент Info
-          console.log(networkInfo);
-        } else {
-          console.log(`Упс! Что-то пошло не так. Статус запроса: ${response.status}`);
-        }
-      }).catch(error => {
-        console.log('Ошибка при запросе к серверу:', error);
-      });
-    };
+		const responses = Promise.all(endpoints.map((endpoint) => axios.get(endpoint)));
+
+		responses.finally(() => {
+			handleClickStatus(-1);
+		});
+
+		responses.then((responses) => {
+			const objects = responses.map((response) => response.data);
+			console.log(objects);
+			setNetworkInfo(objects);
+			console.log(networInfo);
+		});
+	};
 
 
   return (
