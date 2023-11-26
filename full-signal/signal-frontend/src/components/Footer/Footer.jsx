@@ -5,8 +5,8 @@ export const Footer = () => {
   return (
 	<div className={style.container}>
 		<p>Имя пользователя: <span>Admin</span></p>
-		<p>ООО "Рубикон"</p>
-		<p>Серийный номер: <span>11111111</span></p>
+		<p class={style.center}>ООО "Рубикон"</p>
+		<p>Текущая лицензия: <span>00000000</span></p>
 	</div>
   )
 }

@@ -3,7 +3,7 @@ import style from './Info.module.scss'
 import { ChangeContext } from '../../App';
 
 export const Info = () => {
-	const [radioValue, setRadioValue] = useState("");
+	const [radioValue, setRadioValue] = useState("Операционная система");
 
 	const {networkInfo} = useContext(ChangeContext);
 
@@ -51,7 +51,7 @@ export const Info = () => {
 			{
 				networkInfo !== null ? 
 				<>Серийный номер<span>{networkInfo[3].bios_serial}</span></> : 
-				"Здесь будет Ваш отчёт"
+				"Окно отчёта"
 			}
 		</h4>
 		<div className={style.parameters}>
@@ -72,12 +72,12 @@ export const Info = () => {
 							</div>
 						))
 					}
-				</> 
+				</>
 				: null
 			}
 		</div>
 		<div className={style.reportContainer}>
-			{getInfo()}
+			{networkInfo !== null ? getInfo() : <p>Здесь будет отображаться Ваш <span>отчёт</span></p>}
 		</div>
 	</div>
   )

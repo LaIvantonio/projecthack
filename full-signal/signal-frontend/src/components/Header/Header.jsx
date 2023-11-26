@@ -62,6 +62,9 @@ export const Header = () => {
 			setNetworkInfo(objects);
 			console.log(networInfo);
 		});
+		responses.catch((error) => {
+			alert(error);
+		})
 	};
 
 

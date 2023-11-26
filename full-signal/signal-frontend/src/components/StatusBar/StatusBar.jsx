@@ -13,22 +13,23 @@ export const StatusBar = () => {
     	setChangeStatus(newChangeStatus);
   	};
 
-	const downloadReport = () => {
+	const downloadReport = (endpoint, format) => {
 		handleClickStatus(0);
    		axios({
-      		url: 'http://127.0.0.1:8000/report/pdf',
+      		url: `http://127.0.0.1:8000/report/${endpoint}`,
       		method: 'GET',
       		responseType: 'blob', // important
     	}).then((response) => {
       		const url = window.URL.createObjectURL(new Blob([response.data]));
       		const link = document.createElement('a');
       		link.href = url;
-      		link.setAttribute('download', 'report.pdf');
+      		link.setAttribute('download', `report.${format}`);
       		document.body.appendChild(link);
       		link.click();
 			handleClickStatus(-1);
     	}).catch((error) => {
-  			console.error(error);
+  			alert(error);
+			handleClickStatus(-1);
 		});
 		
   	};
@@ -41,8 +42,8 @@ export const StatusBar = () => {
 			<p>Обработка...</p>
 		</div>
 		<div className={style.save} style={{ display: changeStatus[1].display }}>
-			<a onClick={downloadReport}>PDF</a>
-			<a href="!" download>Excel</a>
+			<button onClick={() => downloadReport("pdf", "pdf")}>PDF</button>
+			<button onClick={() => downloadReport("excel", "xlsx")}>Excel</button>
 		</div>
 		<div className={style.send} style={{ display: changeStatus[2].display }}>
 			<form action="">
