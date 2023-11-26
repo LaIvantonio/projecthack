@@ -317,5 +317,6 @@ async def create_excel_report():
         hardware_serials_df.to_excel(writer, sheet_name='Hardware Serials', index=False)
         devices_info_df.to_excel(writer, sheet_name='Devices', index=False)
 
+
     # Возращаем готовый файл клиенту
     return FileResponse(path=excel_file, filename=excel_file, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
