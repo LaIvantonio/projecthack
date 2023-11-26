@@ -4,7 +4,8 @@ import { ChangeContext } from '../../App';
 import axios from 'axios';
 
 export const Header = () => {
-	const [greeting, setGreeting] = useState("");
+	//Состояния для отображения приветствия, даты и времени
+	const [greeting, setGreeting] = useState(""); 
 	const [dateTime, setDateTime] = useState(new Date().toLocaleString());
 
 	useEffect(() => {
@@ -32,9 +33,11 @@ export const Header = () => {
    		};
  	}, []);
 
-	const { changeStatus, setChangeStatus } = useContext(ChangeContext);
+	//Объявляем контекст с состояниями
+	const { changeStatus, setChangeStatus } = useContext(ChangeContext); 
 	const { networInfo, setNetworkInfo } = useContext(ChangeContext);
 
+	//Функция смены статуса по нажатию на нужные кнопки
 	const handleClickStatus = index => {
     	const newChangeStatus = changeStatus.map((item, i) => {
       		return i === index ? { display: 'block' } : {display: 'none'};
@@ -42,6 +45,7 @@ export const Header = () => {
     	setChangeStatus(newChangeStatus);
   	};
 
+	//Запрос на сервер для получения массива с информацией об анализе сети
 	const getInfo = () => {
 		const endpoints = [
 			"http://127.0.0.1:8000/system-info", 
@@ -50,8 +54,10 @@ export const Header = () => {
 			"http://127.0.0.1:8000/hardware-serials"
 		];
 
+		//Проход по всем endpoint-ам
 		const responses = Promise.all(endpoints.map((endpoint) => axios.get(endpoint)));
 
+		//сброс состояния статуса обработки после инициализации массивов
 		responses.finally(() => {
 			handleClickStatus(-1);
 		});

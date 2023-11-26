@@ -4,6 +4,7 @@ import { ChangeContext } from '../../App';
 import axios from 'axios';
 
 export const StatusBar = () => {
+	//использование контекста с состояниями статуса
 	const { changeStatus, setChangeStatus } = useContext(ChangeContext);
 
 	const handleClickStatus = index => {
@@ -13,6 +14,7 @@ export const StatusBar = () => {
     	setChangeStatus(newChangeStatus);
   	};
 
+	//функция, которая отправляет запрос на сервер, для сохранения отчетов на пк
 	const downloadReport = (endpoint, format) => {
 		handleClickStatus(0);
    		axios({
@@ -39,7 +41,7 @@ export const StatusBar = () => {
 		<h3>Статус и информация</h3>
 		<div className={style.turnOnOff} style={{ display: changeStatus[0].display }}>
 			<div></div>
-			<p>Обработка...</p>
+			<p>Обработка...</p> {/*Блок для отображения загрузки*/}
 		</div>
 		<div className={style.save} style={{ display: changeStatus[1].display }}>
 			<button onClick={() => downloadReport("pdf", "pdf")}>PDF</button>

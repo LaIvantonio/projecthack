@@ -4,18 +4,18 @@ import { Info } from './components/Info/Info';
 import { StatusBar } from './components/StatusBar/StatusBar';
 import React, { useState } from 'react';
 
-export const ChangeContext = React.createContext();
+export const ChangeContext = React.createContext(); //Создаем контекст для связывания родительских и дочерних компонентов
 
 function App() {
 
-  const [changeStatus, setChangeStatus] = useState([
+  const [changeStatus, setChangeStatus] = useState([ //состояние отображения статус-бара
     { display: 'none' },
     { display: 'none' },
     { display: 'none' },
     { display: 'none' }
   ]);
 
-  const [networkInfo, setNetworkInfo] = useState(null);
+  const [networkInfo, setNetworkInfo] = useState(null); //Состояние анализа сети
   
   return (
     <ChangeContext.Provider value={{ 
