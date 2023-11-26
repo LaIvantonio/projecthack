@@ -1,8 +1,8 @@
 fastapi
 uvicorn
 reportlab
-wmi
 paramiko
 psutil
 jinja2
-winreg
+pandas
+openpyxl
